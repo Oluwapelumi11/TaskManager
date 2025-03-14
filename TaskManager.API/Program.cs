@@ -10,8 +10,8 @@ using TaskManager.API.Model;
 using TaskManager.API.Repository;
 using TaskManager.API.Service.Auth;
 
+Microsoft.IdentityModel.Logging.IdentityModelEventSource.ShowPII = true;
 var builder = WebApplication.CreateBuilder(args);
-
 // Add services to the container.
 
 builder.Services.AddControllers();
@@ -32,25 +32,27 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(
     builder.Configuration.GetConnectionString("DefaultConnection")
-    ));d
+    ));
 
 string jwtKey = builder.Configuration["Jwt:Key"]!;
 var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
 
 builder.Services.AddAuthentication( options =>
     {
+        options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
         options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
         options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
     })
     .AddJwtBearer(options =>
     {
-        options.RequireHttpsMetadata = true; 
+        options.RequireHttpsMetadata = false; 
         options.SaveToken = true;
+        options.UseSecurityTokenValidators = true;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateAudience = true,
             ValidateIssuer = true,
-            ValidateLifetime = false,
+            ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
             ValidAudience = builder.Configuration["Jwt:Audience"]!,
             ValidIssuer = builder.Configuration["Jwt:Issuer"]!,
@@ -58,6 +60,29 @@ builder.Services.AddAuthentication( options =>
             ClockSkew = TimeSpan.Zero
         };
     });
+builder.Services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+{
+    options.Events = new JwtBearerEvents
+    {
+        OnAuthenticationFailed = context =>
+        {
+            Console.WriteLine($"Authentication failed: {context.Exception.Message}");
+            return Task.CompletedTask;
+        },
+        OnTokenValidated = context =>
+        {
+            Console.WriteLine("Token successfully validated!");
+            return Task.CompletedTask;
+        },
+        OnChallenge = context =>
+        {
+            Console.WriteLine($"Challenge issued: {context.ErrorDescription}");
+            return Task.CompletedTask;
+        }
+    };
+});
+
+
 
 //builder.Services.AddCors(options =>
 //{
@@ -77,12 +102,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
     app.UseSwagger();
 }
-frtfrrf
+
 
 //app.UseCors("AllowAll");
 app.UseHttpsRedirection();
-app.UseAuthentication();
 app.UseRouting();
+app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<ExceptionMiddleware>();
 

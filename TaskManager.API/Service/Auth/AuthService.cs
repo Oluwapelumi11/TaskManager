@@ -23,15 +23,14 @@ namespace TaskManager.API.Service.Auth
                 new Claim(ClaimTypes.Email, user.Email),
                 new Claim(ClaimTypes.Name, user.UserName)
             };
-
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
                 issuer: _config["Jwt:Issuer"],
                 audience: _config["Jwt:Audience"],
                 claims: claims ,
-                expires: DateTime.Now.AddHours(10000),
+                expires: DateTime.Now.AddHours(5),
                 signingCredentials: creds
             );
             return new JwtSecurityTokenHandler().WriteToken(token);
